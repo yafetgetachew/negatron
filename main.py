@@ -1,12 +1,13 @@
 import sys
+import os
 import cv2
 import numpy as np
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QFileDialog, QColorDialog, QFrame
+    QPushButton, QLabel, QFileDialog, QColorDialog, QFrame, QSizePolicy
 )
-from PyQt5.QtGui import QImage, QPixmap, QColor
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QImage, QPixmap, QColor, QCursor, QFont, QFontDatabase
+from PyQt5.QtCore import Qt, QSize
 
 from image_processing import detect_base_color, convert_negative
 
@@ -14,8 +15,35 @@ class NegativeConverter(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("NEGATRON v0.1")
-        self.setWindowFlags(Qt.FramelessWindowHint)  # Remove native window frame (Done)
-        self.setStyleSheet("background-color: #f5e6d2; color: #800020;")
+        self.setWindowFlags(Qt.FramelessWindowHint)
+
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        font_path = os.path.join(script_dir, 'fonts', 'Bowman.ttf')
+
+        font_id = QFontDatabase.addApplicationFont(font_path)
+        if font_id != -1:
+            self.digital_font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
+        else:
+            print(f"Error: Could not load digital font from {font_path}. Using system default.")
+            self.digital_font_family = QFont().family()
+
+        self.setStyleSheet(f"""
+            QMainWindow, QWidget {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                           stop:0 #808080, stop:1 #b0c4de);
+                color: black;
+                font-family: '{self.digital_font_family}';
+            }}
+
+            QLabel {{
+                background: transparent;
+                font-family: '{self.digital_font_family}';
+            }}
+
+            QPushButton {{
+                font-family: '{self.digital_font_family}';
+            }}
+        """)
 
         self.presets = {
             "Auto": None,
@@ -26,7 +54,6 @@ class NegativeConverter(QMainWindow):
 
         self.image = None
         self.processed_full_resolution = None
-
         self.base_color = None
         self.auto_detected_color = None
         self.current_preset = "Auto"
@@ -37,109 +64,240 @@ class NegativeConverter(QMainWindow):
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
         layout = QVBoxLayout(main_widget)
-        layout.setContentsMargins(10, 10, 10, 10)
-
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
         header_layout = QHBoxLayout()
-        header_layout.setContentsMargins(0, 0, 0, 0)
         header_layout.addStretch()
-        close_btn = QPushButton("x")
-        close_btn.setFixedSize(30, 30)
+        close_btn = QPushButton("esc")
+        close_btn.setFixedSize(40, 40)
         close_btn.clicked.connect(self.close)
-        close_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f5e6d2;
-                color: #800020;
-                border: none;
+        close_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: black;
+                border: 1px solid black;
                 font-size: 16px;
-            }
-            QPushButton:hover {
-                background-color: #e0d3bd;
-            }
+                font-family: '{self.digital_font_family}';
+            }}
+            QPushButton:hover {{
+                background-color: black;
+                color: white;
+            }}
         """)
+        close_btn.setCursor(QCursor(Qt.PointingHandCursor))
         header_layout.addWidget(close_btn)
         layout.addLayout(header_layout)
 
-        # Image display frame TODO: Probably enlarge image to fit within boundaries
         image_frame = QFrame()
-        image_frame.setStyleSheet("background-color: #f5e6d2; border-radius: 5px;")
+        image_frame.setStyleSheet("background-color: transparent;")
         image_layout = QHBoxLayout(image_frame)
+        image_layout.setContentsMargins(10, 10, 10, 10)
+        image_layout.setSpacing(20)
+        negative_container = QWidget()
+        negative_layout = QVBoxLayout(negative_container)
+        negative_layout.setContentsMargins(0, 0, 0, 0)
 
-        self.negative_label = QLabel("Negative")
+        negative_title = QLabel("Negative")
+        negative_title.setAlignment(Qt.AlignCenter)
+        negative_title.setStyleSheet(f"""
+            color: black;
+            font-size: 30px;
+            font-weight: bold;
+            font-family: '{self.digital_font_family}';
+        """)
+        negative_layout.addWidget(negative_title)
+
+        self.negative_label = QLabel()
         self.negative_label.setAlignment(Qt.AlignCenter)
-        self.negative_label.setStyleSheet("color: #800020; font-size: 12px;")
-        image_layout.addWidget(self.negative_label)
+        self.negative_label.setMinimumSize(300, 300)
+        self.negative_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        negative_layout.addWidget(self.negative_label)
 
-        self.positive_label = QLabel("Positive")
+        positive_container = QWidget()
+        positive_layout = QVBoxLayout(positive_container)
+        positive_layout.setContentsMargins(0, 0, 0, 0)
+
+        positive_title = QLabel("Positive")
+        positive_title.setAlignment(Qt.AlignCenter)
+        positive_title.setStyleSheet(f"""
+            color: black;
+            font-size: 30px;
+            font-weight: bold;
+            font-family: '{self.digital_font_family}';
+        """)
+        positive_layout.addWidget(positive_title)
+
+        self.positive_label = QLabel()
         self.positive_label.setAlignment(Qt.AlignCenter)
-        self.positive_label.setStyleSheet("color: #800020; font-size: 12px;")
-        image_layout.addWidget(self.positive_label)
+        self.positive_label.setMinimumSize(300, 300)
+        self.positive_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        positive_layout.addWidget(self.positive_label)
+
+        image_layout.addWidget(negative_container)
+        image_layout.addWidget(positive_container)
 
         layout.addWidget(image_frame, stretch=1)
 
-        controls = QHBoxLayout()
-        controls.setSpacing(10)
+        main_controls = QHBoxLayout()
+        main_controls.setSpacing(15)
 
         load_btn = QPushButton("Load")
+        load_btn.setFixedSize(80, 40)
         load_btn.clicked.connect(self.load_image)
         self.style_button(load_btn)
-        controls.addWidget(load_btn)
+        main_controls.addWidget(load_btn)
 
-        # TODO: make buttons more ergonomic, to occupy less space
+        main_controls.addStretch(1)
+
+        convert_btn = QPushButton("Convert")
+        convert_btn.setFixedSize(100, 50)
+        convert_btn.clicked.connect(self.process_image)
+        convert_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: black;
+                border: 1px solid black;
+                padding: 8px 15px;
+                font-size: 16px;
+                font-family: '{self.digital_font_family}';
+            }}
+            QPushButton:hover {{
+                background-color: black;
+                color: white;
+            }}
+            QPushButton:pressed {{
+                background-color: #333333;
+                color: white;
+            }}
+        """)
+        convert_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        main_controls.addWidget(convert_btn)
+
+        main_controls.addStretch(1)
+
+        save_btn = QPushButton("Save")
+        save_btn.setFixedSize(80, 40)
+        save_btn.clicked.connect(self.save_image)
+        self.style_button(save_btn)
+        main_controls.addWidget(save_btn)
+
+        layout.addLayout(main_controls)
+
+        preset_controls = QHBoxLayout()
+        preset_controls.setSpacing(15)
+
+        preset_label = QLabel("Presets:")
+        preset_label.setStyleSheet(f"""
+            color: black;
+            background: transparent;
+            font-family: '{self.digital_font_family}';
+        """)
+        preset_controls.addWidget(preset_label)
+
         self.preset_buttons = {}
         for preset in self.presets:
             btn = QPushButton(preset)
+            btn.setFixedSize(60, 60)
             btn.clicked.connect(lambda checked, p=preset: self.set_preset(p))
-            self.style_button(btn)
+
+            btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: transparent;
+                    color: black;
+                    border: 1px solid black;
+                    padding: 6px;
+                    font-size: 12px;
+                    text-align: center;
+                    font-family: '{self.digital_font_family}';
+                }}
+                QPushButton:hover {{
+                    background-color: black;
+                    color: white;
+                }}
+                QPushButton:pressed {{
+                    background-color: #333333;
+                    color: white;
+                }}
+            """)
+
+            btn.setCursor(QCursor(Qt.PointingHandCursor))
+
             if preset == "Auto":
-                btn.setStyleSheet(btn.styleSheet() + "background-color: #e0d3bd;")
+                btn.setStyleSheet(btn.styleSheet().replace("border: 1px solid black;", "border: 2px solid black;"))
+
             self.preset_buttons[preset] = btn
-            controls.addWidget(btn)
+            preset_controls.addWidget(btn)
+
+        preset_controls.addStretch()
 
         color_frame = QFrame()
+        color_frame.setStyleSheet("background: transparent;")
         color_layout = QHBoxLayout(color_frame)
         color_layout.setSpacing(5)
+        color_layout.setContentsMargins(0, 0, 0, 0)
+
+        color_label = QLabel("Base Color:")
+        color_label.setStyleSheet(f"""
+            color: black;
+            background: transparent;
+            font-family: '{self.digital_font_family}';
+        """)
+        color_layout.addWidget(color_label)
 
         self.color_preview = QLabel()
-        self.color_preview.setFixedSize(30, 30)
-        self.color_preview.setStyleSheet("border: 1px solid #800020; border-radius: 3px;")
+        self.color_preview.setFixedSize(40, 40)
+        self.color_preview.setStyleSheet("border: 1px solid black;")
         color_layout.addWidget(self.color_preview)
 
         pick_btn = QPushButton("Pick")
+        pick_btn.setFixedSize(60, 60)
         pick_btn.clicked.connect(self.pick_color)
-        self.style_button(pick_btn)
+        pick_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: black;
+                border: 1px solid black;
+                padding: 6px;
+                font-size: 12px;
+                text-align: center;
+                font-family: '{self.digital_font_family}';
+            }}
+            QPushButton:hover {{
+                background-color: black;
+                color: white;
+            }}
+            QPushButton:pressed {{
+                background-color: #333333;
+                color: white;
+            }}
+        """)
+        pick_btn.setCursor(QCursor(Qt.PointingHandCursor))
         color_layout.addWidget(pick_btn)
 
-        controls.addWidget(color_frame)
+        preset_controls.addWidget(color_frame)
 
-        apply_btn = QPushButton("Apply")
-        apply_btn.clicked.connect(self.process_image)
-        self.style_button(apply_btn)
-        controls.addWidget(apply_btn)
-
-        save_btn = QPushButton("Save")
-        save_btn.clicked.connect(self.save_image)
-        self.style_button(save_btn)
-        controls.addWidget(save_btn)
-
-        layout.addLayout(controls)
+        layout.addLayout(preset_controls)
 
     def style_button(self, button):
-        button.setStyleSheet("""
-            QPushButton {
-                background-color: #f5e6d2;
-                color: #800020;
-                border: 1px solid #800020;
-                border-radius: 3px;
-                padding: 5px 10px;
+        button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: transparent;
+                color: black;
+                border: 1px solid black;
+                padding: 8px 15px;
                 font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #e0d3bd;
-            }
-            QPushButton:pressed {
-                background-color: #d1c4a8;
-            }
+                font-family: '{self.digital_font_family}';
+            }}
+            QPushButton:hover {{
+                background-color: black;
+                color: white;
+            }}
+            QPushButton:pressed {{
+                background-color: #333333;
+                color: white;
+            }}
         """)
+        button.setCursor(QCursor(Qt.PointingHandCursor))
 
     def load_image(self):
         file_name, _ = QFileDialog.getOpenFileName(
@@ -169,12 +327,21 @@ class NegativeConverter(QMainWindow):
         height, width, channel = img_rgb.shape
         bytes_per_line = 3 * width
         q_img = QImage(img_rgb.data, width, height, bytes_per_line, QImage.Format_RGB888)
-        return QPixmap.fromImage(q_img).scaled(480, 580, Qt.KeepAspectRatio)
+        pixmap = QPixmap.fromImage(q_img)
+        return pixmap
 
     def display_negative(self):
         if self.image is not None:
             pixmap = self.image_to_pixmap(self.image)
-            self.negative_label.setPixmap(pixmap)
+            width = max(300, self.negative_label.width())
+            height = max(300, self.negative_label.height())
+            self.negative_label.setPixmap(pixmap.scaled(
+                width,
+                height,
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation
+            ))
+            self.negative_label.adjustSize()
 
     def update_color_preview(self):
         if self.current_preset == "Auto":
@@ -187,7 +354,7 @@ class NegativeConverter(QMainWindow):
         else:
             color = QColor(*self.presets[self.current_preset])
         self.color_preview.setStyleSheet(
-            f"background-color: {color.name()}; border: 1px solid #800020; border-radius: 3px;"
+            f"background-color: {color.name()}; border: 1px solid black;"
         )
 
     def set_preset(self, preset):
@@ -203,9 +370,9 @@ class NegativeConverter(QMainWindow):
     def update_preset_buttons(self):
         for preset, button in self.preset_buttons.items():
             if preset == self.current_preset:
-                button.setStyleSheet(button.styleSheet() + "background-color: #e0d3bd;")
+                button.setStyleSheet(button.styleSheet().replace("border: 1px solid black;", "border: 2px solid black;"))
             else:
-                button.setStyleSheet(button.styleSheet().replace("background-color: #e0d3bd;", ""))
+                button.setStyleSheet(button.styleSheet().replace("border: 2px solid black;", "border: 1px solid black;"))
 
     def process_image(self):
         if self.image is None:
@@ -222,7 +389,15 @@ class NegativeConverter(QMainWindow):
         self.processed_full_resolution = processed
 
         pixmap = self.image_to_pixmap(processed)
-        self.positive_label.setPixmap(pixmap)
+        width = max(300, self.positive_label.width())
+        height = max(300, self.positive_label.height())
+        self.positive_label.setPixmap(pixmap.scaled(
+            width,
+            height,
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation
+        ))
+        self.positive_label.adjustSize()
 
     def save_image(self):
         if self.processed_full_resolution is None:
@@ -235,10 +410,17 @@ class NegativeConverter(QMainWindow):
         if file_name:
             cv2.imwrite(file_name, self.processed_full_resolution)
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, 'image') and self.image is not None:
+            self.display_negative()
+            if self.processed_full_resolution is not None:
+                self.process_image()
+
 def main():
     app = QApplication(sys.argv)
     window = NegativeConverter()
-    window.showFullScreen()  # Now it starts in full-screen (Should it?)
+    window.showFullScreen()
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
