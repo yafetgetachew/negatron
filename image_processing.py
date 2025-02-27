@@ -3,6 +3,8 @@ import numpy as np
 def detect_base_color(img):
     """
     Detects the base (darkest) color in the image by analyzing the darkest 10% of the pixels.
+    TODO: Add other algos, but I think this one should work for most cases. Unless there's a Scanner
+    that misbehaves
     """
     pixels = img.reshape(-1, 3)
     sorted_pixels = pixels[np.argsort(np.sum(pixels, axis=1))]
