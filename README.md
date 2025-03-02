@@ -16,3 +16,7 @@ The conversion is essentially a color inversion algorithm—with an added twist.
 
    ```bash
    python main.py
+
+
+
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yafetgetachew_negatron&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yafetgetachew_negatron)
