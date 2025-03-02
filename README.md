@@ -1,3 +1,5 @@
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yafetgetachew_negatron&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yafetgetachew_negatron)
+
 # NEGATRON
 
 A simple desktop application that converts  color negative film scans into color positive images.
@@ -19,4 +21,3 @@ The conversion is essentially a color inversion algorithm—with an added twist.
 
 
 
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=yafetgetachew_negatron&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=yafetgetachew_negatron)
